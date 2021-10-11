@@ -63,7 +63,7 @@ func updateProject(dir string, logs *zap.Logger) {
 						}),
 					}
 
-					// Sometimes happend error reference has changed, so do wait and than do pull again
+					// Sometimes happend error reference has changed, so wait for few seconds and than do pull again
 					for {
 						err = workTree.Pull(&gitPullOption)
 						utils.CheckIsError(err, logs)

@@ -6,6 +6,7 @@ import (
 	"os"
 )
 
+// Add custom the -h / help flags message
 func SetUsageFlag() {
 	var usage = func() {
 		fmt.Fprintln(os.Stderr, "Usage Command go-git-pull [-c/-action=action] [-option=option ...]")
@@ -17,6 +18,8 @@ func SetUsageFlag() {
 	flag.Usage = usage
 }
 
+// Validation for checking if action
+// being used is exist
 func ValidateEnvirontment() bool {
 	validator := setArgsValidator()
 
@@ -32,6 +35,8 @@ func ValidateEnvirontment() bool {
 	return validator[Action]()
 }
 
+// Put the validation for every action.
+// Being separated for better maintenance
 func setArgsValidator() map[string]func() bool {
 	rtn := make(map[string]func() bool)
 

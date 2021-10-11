@@ -5,6 +5,8 @@ import (
 	"go.uber.org/zap"
 )
 
+// Collect the command dispatcher function as a set of key value array.
+// Then execute action based on action key provided
 func CommandDispatcher(logs *zap.Logger) {
 	defer utils.ErrorHandler()
 
