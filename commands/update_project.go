@@ -48,11 +48,27 @@ func updateProject(dir string, logs *zap.Logger) {
 // do git fetch all, restore anything that change and do git pull on master branch
 func updateRepository(dirPath string, dirName string, logs *zap.Logger) {
 	utils.Debugf("%v is a repo", dirName)
-	repo, _ := git.PlainOpen(dirPath)
-	repo.Fetch(&git.FetchOptions{})
-	workTree, _ := repo.Worktree()
-
 	var err error
+
+	var auth transport.AuthMethod
+	if utils.Auth == "http" {
+		auth = transport.AuthMethod(&http.BasicAuth{
+			Username: utils.Username,
+			Password: utils.Password,
+		})
+	} else {
+		auth = transport.AuthMethod(&http.BasicAuth{
+			Username: "token",
+			Password: utils.Token,
+		})
+	}
+
+	repo, _ := git.PlainOpen(dirPath)
+
+	err = repo.Fetch(&git.FetchOptions{Auth: auth})
+	utils.CheckIsError(err, logs)
+
+	workTree, _ := repo.Worktree()
 	if utils.HardReset {
 		err = workTree.Reset(&git.ResetOptions{Mode: git.HardReset})
 		utils.CheckIsError(err, logs)
@@ -65,7 +81,8 @@ func updateRepository(dirPath string, dirName string, logs *zap.Logger) {
 		return
 	}
 
-	workTree.AddWithOptions(&git.AddOptions{All: true})
+	err = workTree.AddWithOptions(&git.AddOptions{All: true})
+	utils.CheckIsError(err, logs)
 	err = workTree.Checkout(&git.CheckoutOptions{
 		Force:  true,
 		Keep:   true,
@@ -75,18 +92,6 @@ func updateRepository(dirPath string, dirName string, logs *zap.Logger) {
 	if err != nil && utils.Verbose {
 		logs.Sugar().Warnf("Repo %v Got error: %v", dirName, err.Error())
 		return
-	}
-
-	var auth transport.AuthMethod
-	if utils.Auth == "http" {
-		auth = transport.AuthMethod(&http.BasicAuth{
-			Username: utils.Username,
-			Password: utils.Password,
-		})
-	} else {
-		auth = transport.AuthMethod(&http.TokenAuth{
-			Token: utils.Token,
-		})
 	}
 
 	gitPullOption := git.PullOptions{
