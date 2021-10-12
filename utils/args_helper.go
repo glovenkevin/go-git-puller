@@ -23,12 +23,18 @@ func SetUsageFlag() {
 func ValidateEnvirontment() bool {
 	validator := setArgsValidator()
 
-	if validator[Action] == nil && Action != "" {
-		Logs.Sugar().Errorf("Action is unknown [ %v ]", Action)
+	if Action == "" {
+		Logs.Sugar().Error("Action can't be empty")
 		return false
 	}
 
-	if Action == "" {
+	if Auth == "" {
+		Logs.Sugar().Error("Auth can't be empty")
+		return false
+	}
+
+	if validator[Action] == nil && Action != "" {
+		Logs.Sugar().Errorf("Action is unknown [ %v ]", Action)
 		return false
 	}
 
@@ -45,23 +51,30 @@ func setArgsValidator() map[string]func() bool {
 	return rtn
 }
 
+// Validate for update action needs
 func validateUpdateAction() bool {
-	rtn := true
-	if Username == "" {
-		Logs.Error("Username can't be blank")
-		rtn = false
+	if Auth == "http" {
+		if Username == "" {
+			Logs.Error("Username can't be blank")
+			return false
+		}
+
+		if Password == "" {
+			Logs.Error("Password can't be blank")
+			return false
+		}
 	}
 
-	if Password == "" {
-		Logs.Error("Password can't be blank")
-		rtn = false
+	if Auth == "token" && Token == "" {
+		Logs.Error("Token can't be blank")
+		return false
 	}
 
 	folder, err := os.Stat(RootDir)
 	if err != nil || !folder.IsDir() {
 		Logs.Error("Directory not exist or isn't a directory")
-		rtn = false
+		return false
 	}
 
-	return rtn
+	return true
 }

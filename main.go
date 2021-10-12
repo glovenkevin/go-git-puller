@@ -25,6 +25,11 @@ func main() {
 	flag.StringVar(&utils.Action, "c", ".", "Set action")
 	flag.StringVar(&utils.Action, "action", ".", "Set action")
 
+	flag.StringVar(&utils.Auth, "auth", "http", "Set auth method, use token or http basic (default http)")
+
+	flag.StringVar(&utils.Token, "t", "", "Token for authentication")
+	flag.StringVar(&utils.Token, "token", "", "Token for authentication")
+
 	flag.StringVar(&utils.Username, "U", "", "Put username for git")
 	flag.StringVar(&utils.Username, "username", "", "Put username for git")
 

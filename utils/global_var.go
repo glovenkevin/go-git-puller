@@ -23,6 +23,12 @@ var HardReset bool
 //		update-gitlab (To-Be)
 var Action string
 
+// Define auth AuthMethod
+// Supported:
+//		http (basic auth http using username and password)
+//		token (using token from your git repository)
+var Auth string
+
 // Username used for login
 // in gitlab or other git repository
 var Username string
@@ -30,6 +36,9 @@ var Username string
 // Password used for login
 // in gitlab or other git repository
 var Password string
+
+// Token from git service for authentication
+var Token string
 
 // Define const pattern for regex
 // String only validation

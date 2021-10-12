@@ -19,6 +19,8 @@ func CommandDispatcher(logs *zap.Logger) {
 	dispatcher[utils.Action](logs)
 }
 
+// Set function into key value array so that
+// it's not creating much mor if else statement
 func setUpCommandDispatcher(dispatcher *map[string]func(logs *zap.Logger)) {
 
 	(*dispatcher)["update"] = UpdatesProjectGit
