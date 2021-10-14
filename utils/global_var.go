@@ -1,6 +1,8 @@
 package utils
 
-import "go.uber.org/zap"
+import (
+	"go.uber.org/zap"
+)
 
 // Flag for verbosing the action
 // produced by application
@@ -8,10 +10,6 @@ var Verbose bool
 
 // Define root directory of the action
 var RootDir string
-
-// Set the environtment program
-// Current: PROD, DEV
-var Environtment string
 
 // Set repository for using
 // hard or softreset
@@ -29,6 +27,9 @@ var Action string
 //		token (using token from your git repository)
 var Auth string
 
+// Define base url for gitlab or github repository
+var Baseurl string
+
 // Username used for login
 // in gitlab or other git repository
 var Username string
@@ -45,11 +46,12 @@ var Token string
 const PATERN_STRING_ONLY string = "^[a-zA-Z]+$"
 
 // Init Global Logger for the application
-var Logs *zap.Logger
+var logs *zap.Logger
 
 func init() {
 	Verbose = false
 	RootDir = "."
-	Environtment = "PROD"
 	HardReset = false
+
+	logs, _ = zap.NewProduction()
 }

@@ -10,22 +10,21 @@ import (
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
-	"go.uber.org/zap"
 )
 
-func UpdatesProjectGit(logs *zap.Logger) {
-	if utils.CheckDirIsGitRepo(utils.RootDir, logs) {
+func UpdatesProjectGit() {
+	if utils.CheckDirIsGitRepo(utils.RootDir) {
 		arrPath := strings.Split(utils.RootDir, "/")
 		dirName := arrPath[len(arrPath)-1]
-		updateRepository(utils.RootDir, dirName, logs)
+		updateRepository(utils.RootDir, dirName)
 	} else {
-		updateProject(utils.RootDir, logs)
+		updateProject(utils.RootDir)
 	}
 }
 
 // Search for directory inside given path then check it
 // if it was git repo than do update or check other dir inside the directory it self
-func updateProject(dir string, logs *zap.Logger) {
+func updateProject(dir string) {
 	arrDir, _ := os.ReadDir(dir)
 	for _, dirEntry := range arrDir {
 
@@ -36,17 +35,17 @@ func updateProject(dir string, logs *zap.Logger) {
 		dirPath := dir + "/" + dirEntry.Name()
 		utils.Debug("Dirpath: ", dirPath)
 
-		if utils.CheckDirIsGitRepo(dirPath, logs) {
-			updateRepository(dirPath, dirEntry.Name(), logs)
+		if utils.CheckDirIsGitRepo(dirPath) {
+			updateRepository(dirPath, dirEntry.Name())
 		} else {
-			updateProject(dirPath, logs)
+			updateProject(dirPath)
 		}
 	}
 }
 
 // Update git repository on master branch
 // do git fetch all, restore anything that change and do git pull on master branch
-func updateRepository(dirPath string, dirName string, logs *zap.Logger) {
+func updateRepository(dirPath string, dirName string) {
 	utils.Debugf("%v is a repo", dirName)
 	var err error
 
@@ -66,15 +65,15 @@ func updateRepository(dirPath string, dirName string, logs *zap.Logger) {
 	repo, _ := git.PlainOpen(dirPath)
 
 	err = repo.Fetch(&git.FetchOptions{Auth: auth})
-	utils.CheckIsError(err, logs)
+	utils.CheckIsError(err)
 
 	workTree, _ := repo.Worktree()
 	if utils.HardReset {
 		err = workTree.Reset(&git.ResetOptions{Mode: git.HardReset})
-		utils.CheckIsError(err, logs)
+		utils.CheckIsError(err)
 	} else {
 		err = workTree.Reset(&git.ResetOptions{Mode: git.SoftReset})
-		utils.CheckIsError(err, logs)
+		utils.CheckIsError(err)
 	}
 
 	if err != nil {
@@ -82,15 +81,15 @@ func updateRepository(dirPath string, dirName string, logs *zap.Logger) {
 	}
 
 	err = workTree.AddWithOptions(&git.AddOptions{All: true})
-	utils.CheckIsError(err, logs)
+	utils.CheckIsError(err)
 	err = workTree.Checkout(&git.CheckoutOptions{
 		Force:  true,
 		Keep:   true,
 		Branch: plumbing.Master,
 	})
-	utils.CheckIsError(err, logs)
+	utils.CheckIsError(err)
 	if err != nil && utils.Verbose {
-		logs.Sugar().Warnf("Repo %v Got error: %v", dirName, err.Error())
+		utils.Warnf("Repo %v Got error: %v", dirName, err.Error())
 		return
 	}
 
@@ -110,7 +109,7 @@ func updateRepository(dirPath string, dirName string, logs *zap.Logger) {
 			utils.Debugf("Wait for %dS for error %v", 5, err)
 			time.Sleep(5 * time.Second)
 		} else {
-			logs.Sugar().Fatalf("Repo %v failed to be pulled, cause: %v", dirName, err.Error())
+			utils.Warnf("Repo %v failed to be pulled, cause: %v", dirName, err.Error())
 		}
 	}
 }
