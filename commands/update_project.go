@@ -10,82 +10,106 @@ import (
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
-	"go.uber.org/zap"
 )
 
-func UpdatesProjectGit(logs *zap.Logger) {
-	updateProject(utils.RootDir, logs)
+func UpdatesProjectGit() {
+	if utils.CheckDirIsGitRepo(utils.RootDir) {
+		arrPath := strings.Split(utils.RootDir, "/")
+		dirName := arrPath[len(arrPath)-1]
+		updateRepository(utils.RootDir, dirName)
+	} else {
+		updateProject(utils.RootDir)
+	}
 }
 
-func updateProject(dir string, logs *zap.Logger) {
-
+// Search for directory inside given path then check it
+// if it was git repo than do update or check other dir inside the directory it self
+func updateProject(dir string) {
 	arrDir, _ := os.ReadDir(dir)
 	for _, dirEntry := range arrDir {
+
+		if !dirEntry.IsDir() {
+			continue
+		}
+
 		dirPath := dir + "/" + dirEntry.Name()
 		utils.Debug("Dirpath: ", dirPath)
 
-		if dirEntry.IsDir() && utils.CheckDirIsGitRepo(dirPath, logs) {
-			utils.Debugf("%v is a repo", dirEntry.Name())
-			repo, _ := git.PlainOpen(dirPath)
-			repo.Fetch(&git.FetchOptions{})
-			workTree, _ := repo.Worktree()
-
-			var err error
-			if utils.HardReset {
-				err = workTree.Reset(&git.ResetOptions{Mode: git.HardReset})
-				utils.CheckIsError(err, logs)
-			} else {
-				err = workTree.Reset(&git.ResetOptions{Mode: git.SoftReset})
-				utils.CheckIsError(err, logs)
-			}
-
-			if err == nil {
-				utils.Debugf("%v : Change to branch master", dirEntry.Name())
-
-				workTree.AddWithOptions(&git.AddOptions{All: true})
-				err = workTree.Checkout(&git.CheckoutOptions{
-					Force:  true,
-					Keep:   true,
-					Branch: plumbing.Master,
-				})
-				utils.CheckIsError(err, logs)
-				if err != nil && utils.Verbose {
-					logs.Sugar().Warnf("Repo %v Got error: %v", dirEntry.Name(), err.Error())
-				}
-
-				if err == nil {
-					gitPullOption := git.PullOptions{
-						RemoteName: "origin",
-						// Progress:   os.Stderr,
-						Auth: transport.AuthMethod(&http.BasicAuth{
-							Username: utils.Username,
-							Password: utils.Password,
-						}),
-					}
-
-					// Sometimes happend error reference has changed, so do wait and than do pull again
-					for {
-						err = workTree.Pull(&gitPullOption)
-						utils.CheckIsError(err, logs)
-						if err == nil || (err != nil && strings.Contains(err.Error(), "up-to-date")) {
-							utils.Debugf("Repo %v success pulled to the latest master", dirEntry.Name())
-							break
-						} else if strings.HasSuffix(err.Error(), "reference has changed concurrently") {
-							utils.Debugf("Wait for %dS for error %v", 5, err)
-							time.Sleep(5 * time.Second)
-						} else {
-							logs.Sugar().Fatalf("Repo %v failed to be pulled, cause: %v", dirEntry.Name(), err.Error())
-						}
-					}
-				}
-
-			} else {
-				logs.Sugar().Warnf("Please check repo %v for changes", dirEntry.Name())
-			}
-
+		if utils.CheckDirIsGitRepo(dirPath) {
+			updateRepository(dirPath, dirEntry.Name())
 		} else {
-			updateProject(dirPath, logs)
+			updateProject(dirPath)
 		}
 	}
+}
 
+// Update git repository on master branch
+// do git fetch all, restore anything that change and do git pull on master branch
+func updateRepository(dirPath string, dirName string) {
+	utils.Debugf("%v is a repo", dirName)
+	var err error
+
+	var auth transport.AuthMethod
+	if utils.Auth == "http" {
+		auth = transport.AuthMethod(&http.BasicAuth{
+			Username: utils.Username,
+			Password: utils.Password,
+		})
+	} else {
+		auth = transport.AuthMethod(&http.BasicAuth{
+			Username: "token",
+			Password: utils.Token,
+		})
+	}
+
+	repo, _ := git.PlainOpen(dirPath)
+
+	err = repo.Fetch(&git.FetchOptions{Auth: auth})
+	utils.CheckIsError(err)
+
+	workTree, _ := repo.Worktree()
+	if utils.HardReset {
+		err = workTree.Reset(&git.ResetOptions{Mode: git.HardReset})
+		utils.CheckIsError(err)
+	} else {
+		err = workTree.Reset(&git.ResetOptions{Mode: git.SoftReset})
+		utils.CheckIsError(err)
+	}
+
+	if err != nil {
+		return
+	}
+
+	err = workTree.AddWithOptions(&git.AddOptions{All: true})
+	utils.CheckIsError(err)
+	err = workTree.Checkout(&git.CheckoutOptions{
+		Force:  true,
+		Keep:   true,
+		Branch: plumbing.Master,
+	})
+	utils.CheckIsError(err)
+	if err != nil && utils.Verbose {
+		utils.Warnf("Repo %v Got error: %v", dirName, err.Error())
+		return
+	}
+
+	gitPullOption := git.PullOptions{
+		RemoteName: "origin",
+		Auth:       auth,
+	}
+
+	// Sometimes happend error reference has changed,
+	// wait for few seconds and than do pull again
+	for {
+		err = workTree.Pull(&gitPullOption)
+		if err == nil || (err != nil && strings.Contains(err.Error(), "up-to-date")) {
+			utils.Debugf("Repo %v success pulled to the latest master", dirName)
+			break
+		} else if strings.HasSuffix(err.Error(), "reference has changed concurrently") {
+			utils.Debugf("Wait for %dS for error %v", 5, err)
+			time.Sleep(5 * time.Second)
+		} else {
+			utils.Warnf("Repo %v failed to be pulled, cause: %v", dirName, err.Error())
+		}
+	}
 }
