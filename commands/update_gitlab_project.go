@@ -5,6 +5,8 @@ import (
 	"strings"
 
 	"github.com/glovenkevin/go-git-puller/utils"
+	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/xanzy/go-gitlab"
 )
 
@@ -37,7 +39,7 @@ func updateGitlab(c *gitlab.Client) {
 
 	for _, group := range rootGroups {
 		path := utils.RootDir + "/" + group.Name
-		go checkPath(path)
+		go createDir(path)
 		getSubgroups(group, path)
 		getProjects(group, path)
 	}
@@ -47,13 +49,13 @@ func getSubgroups(g *gitlab.Group, parent string) {
 	subGroups, _, _ := client.Groups.ListSubgroups(g.ID, nil)
 	for _, group := range subGroups {
 		path := parent + "/" + group.Name
-		go checkPath(path)
+		go createDir(path)
 		getSubgroups(group, path)
 		getProjects(group, path)
 	}
 }
 
-func checkPath(path string) {
+func createDir(path string) {
 	err := os.Mkdir(path, os.ModeDir)
 	if err != nil && strings.Contains(err.Error(), "already exists") {
 		return
@@ -62,7 +64,42 @@ func checkPath(path string) {
 }
 
 func getProjects(g *gitlab.Group, parent string) {
-	// for _, project := range g.Projects {
 
-	// }
+	projects, _, err := client.Groups.ListGroupProjects(g.ID, nil)
+	if err != nil {
+		utils.Error(err.Error())
+		return
+	}
+
+	for _, project := range projects {
+		cloneOrUpdateProject(project, parent)
+	}
+
+}
+
+func cloneOrUpdateProject(p *gitlab.Project, rootDir string) {
+	path := rootDir + "/" + p.Name
+	if utils.ValidateFolder(path) {
+		utils.Debugf("Update existing repo %v", p.Name)
+		UpdateRepository(path, p.Name)
+	} else {
+		utils.Debugf("Clone new repo %v", p.Name)
+		CloneRepository(path, p.WebURL)
+	}
+}
+
+func CloneRepository(path string, url string) {
+	var option *git.CloneOptions = &git.CloneOptions{
+		URL: url,
+		Auth: &http.BasicAuth{
+			Username: "token",
+			Password: utils.Token,
+		},
+	}
+
+	_, err := git.PlainClone(path, false, option)
+	if err != nil {
+		utils.Warnf("Error repo dir %v", path)
+		utils.Warn(err.Error())
+	}
 }
