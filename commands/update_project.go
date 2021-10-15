@@ -16,7 +16,7 @@ func UpdatesProjectGit() {
 	if utils.CheckDirIsGitRepo(utils.RootDir) {
 		arrPath := strings.Split(utils.RootDir, "/")
 		dirName := arrPath[len(arrPath)-1]
-		updateRepository(utils.RootDir, dirName)
+		UpdateRepository(utils.RootDir, dirName)
 	} else {
 		updateProject(utils.RootDir)
 	}
@@ -36,7 +36,7 @@ func updateProject(dir string) {
 		utils.Debug("Dirpath: ", dirPath)
 
 		if utils.CheckDirIsGitRepo(dirPath) {
-			updateRepository(dirPath, dirEntry.Name())
+			UpdateRepository(dirPath, dirEntry.Name())
 		} else {
 			updateProject(dirPath)
 		}
@@ -45,7 +45,7 @@ func updateProject(dir string) {
 
 // Update git repository on master branch
 // do git fetch all, restore anything that change and do git pull on master branch
-func updateRepository(dirPath string, dirName string) {
+func UpdateRepository(dirPath string, dirName string) {
 	utils.Debugf("%v is a repo", dirName)
 	var err error
 
