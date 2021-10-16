@@ -37,6 +37,7 @@ func (c *Command) updateGit() error {
 		auth:      c.auth,
 		hardReset: c.hardReset,
 	})
+
 	err := node.updateProject()
 	if err != nil {
 		return err
@@ -50,6 +51,8 @@ func (c *Command) updateGit() error {
 	return nil
 }
 
+// Create node for every folder being acceced.
+// This will help to do better saving data about path and dir name
 func makeNode(opt *nodeOptions) *node {
 	arrPath := strings.Split(opt.path, "/")
 	node := node{
@@ -80,6 +83,8 @@ func (n *node) updateProject() error {
 		}
 
 		dirPath := n.path + "/" + dirEntry.Name()
+		logs.Sugar().Debug(dirPath)
+
 		node := makeNode(&nodeOptions{
 			path:      dirPath,
 			auth:      n.auth,
@@ -161,7 +166,7 @@ func (n *node) updateRepo() error {
 	return nil
 }
 
-// Checking current directory given is a
+// Checking current given directory is a
 // git repository
 func isRepo(path string) bool {
 	_, err := git.PlainOpen(path)

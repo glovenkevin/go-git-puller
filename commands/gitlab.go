@@ -11,6 +11,8 @@ import (
 
 var auth *Auth
 
+// Update gitlab tree using given credential and root directory
+// Do update if the repo/group present or clone/create the directory of repo is not present
 func (c *Command) updateGitlab() error {
 
 	var clientFuncOpt gitlab.ClientOptionFunc = nil
@@ -47,6 +49,8 @@ func (c *Command) updateGitlab() error {
 	return nil
 }
 
+// List subgroups inside a gitlab group. If there is subgroup than do
+// Recursive check again if there is project or a subgroup again
 func getSubgroups(c *gitlab.Client, g *gitlab.Group, parent string) {
 	subGroups, _, _ := c.Groups.ListSubgroups(g.ID, nil)
 	for _, group := range subGroups {
@@ -57,6 +61,7 @@ func getSubgroups(c *gitlab.Client, g *gitlab.Group, parent string) {
 	}
 }
 
+// Create the folder of given directory if not exist
 func createDir(path string) {
 	err := os.Mkdir(path, os.ModeDir)
 	if err != nil && strings.Contains(err.Error(), "already exists") {
@@ -64,6 +69,7 @@ func createDir(path string) {
 	}
 }
 
+// List project inside gitlab group and do update or clone the project
 func getProjects(c *gitlab.Client, g *gitlab.Group, parent string) {
 
 	projects, _, err := c.Groups.ListGroupProjects(g.ID, nil)
@@ -78,6 +84,8 @@ func getProjects(c *gitlab.Client, g *gitlab.Group, parent string) {
 
 }
 
+// Check wether the repository is Exist or not
+// Do update repo if exist or clone repo if it not present in directory
 func cloneOrUpdateRepo(p *gitlab.Project, rootDir string) {
 	path := rootDir + "/" + p.Name
 	_, err := os.Stat(path)
@@ -95,6 +103,8 @@ func cloneOrUpdateRepo(p *gitlab.Project, rootDir string) {
 	}
 }
 
+// Clone repo from given path and url
+// Repo name will using dir name (include case sensitive)
 func cloneRepo(path string, url string) {
 	var option *git.CloneOptions = &git.CloneOptions{
 		URL: url,
