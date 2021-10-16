@@ -15,6 +15,7 @@ type Cli struct {
 	Baseurl   string
 	Username  string
 	Password  string
+	Token     string
 }
 
 // Return new Cli struct for consuming
@@ -47,21 +48,21 @@ func (c *Cli) Parse() error {
 	flag.StringVar(&c.Baseurl, "u", "https://gitlab.com/", "Url gitlab repository")
 	flag.StringVar(&c.Baseurl, "url", "https://gitlab.com/", "Url gitlab repository")
 
-	flag.StringVar(&c.Username, "U", "token", "Put username for git")
-	flag.StringVar(&c.Username, "username", "token", "Put username for git")
+	flag.StringVar(&c.Username, "U", "", "Put username for git")
+	flag.StringVar(&c.Username, "username", "", "Put username for git")
 
 	flag.StringVar(&c.Password, "P", "", "Put password for git")
 	flag.StringVar(&c.Password, "password", "", "Put password for git")
 
-	flag.StringVar(&c.Password, "t", "", "Token for authentication")
-	flag.StringVar(&c.Password, "token", "", "Token for authentication")
+	flag.StringVar(&c.Token, "t", "", "Token for authentication")
+	flag.StringVar(&c.Token, "token", "", "Token for authentication")
 
 	flag.StringVar(&c.Rootdir, "path", ".", "Set Working directory root path")
 	flag.BoolVar(&c.Verbose, "verbose", false, "Activate verbose/debug print")
 	flag.BoolVar(&c.Hardreset, "hard-reset", false, "Set false to use softreset or otherwise")
 
 	flag.Parse()
-	return c.validateInput()
+	return c.Validate()
 }
 
 var (
@@ -70,17 +71,30 @@ var (
 )
 
 // Validate mandatory input that has been set
-func (c *Cli) validateInput() error {
-	if c.Username == "" || c.Password == "" {
+// Action is a must: update, update-gitlab
+// Credential is a must: using username & password or git token
+// Root directory must valid or will using current dir
+func (c *Cli) Validate() error {
+
+	if c.Action == "" {
+		return ErrActionNotFound
+	}
+
+	if c.Token == "" && (c.Username == "" || c.Password == "") {
 		return ErrCredentialNotFound
+	}
+
+	if c.Rootdir == "" {
+		c.Rootdir = "."
 	}
 
 	if _, err := os.Stat(c.Rootdir); err != nil {
 		return err
 	}
 
-	if c.Action == "" {
-		return ErrActionNotFound
+	if c.Token != "" {
+		c.Username = "token"
+		c.Password = c.Token
 	}
 
 	return nil
