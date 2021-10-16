@@ -1,0 +1,13 @@
+name: Linting Job
+
+on:
+  pull_request:
+  push:
+    branches: master
+
+jobs:
+  do-lint:
+    runs-on: ubuntu-latest
+      steps:
+        - run: |
+            echo "hello world"
