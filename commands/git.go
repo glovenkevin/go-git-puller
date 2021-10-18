@@ -28,8 +28,8 @@ type nodeOptions struct {
 	hardReset bool
 }
 
-// Start updating git folder start from given root directory.
-// Update was doing used recursive function for every node folder
+// Start updating git folder from the given root directory.
+// The update was doing recursive function for every node folder inside given directory
 func (c *Command) updateGit() error {
 	// Start the working tree of update
 	node := makeNode(&nodeOptions{
@@ -109,7 +109,7 @@ func (n *node) updateProject() error {
 // do git fetch all, restore anything that change and do git pull on master branch
 func (n *node) updateRepo() error {
 	if !isRepo(n.path) {
-		return git.ErrRepositoryNotExists
+		return nil
 	}
 
 	var err error

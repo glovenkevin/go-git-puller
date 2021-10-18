@@ -17,10 +17,12 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
-	m.Run()
+	code := m.Run()
 
 	// Remove folder after test done
 	os.Remove(folder)
+	// End test
+	os.Exit(code)
 }
 
 func TestValidate(t *testing.T) {

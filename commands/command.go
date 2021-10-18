@@ -32,7 +32,12 @@ type Options struct {
 }
 
 type Auth struct {
+	// Username being used for authentication with git.
+	// If this token was set, then this field will have default value "token" (acording to go-git docs to use like this)
 	Username string
+
+	// Password for authentication with git
+	// If token was set, then it's gonna be put in here
 	Password string
 }
 
@@ -40,7 +45,8 @@ var (
 	ErrCommandNotFound    = errors.New("Command not found/unrecognize")
 	ErrCredentialNotFound = errors.New("Credential has not been set completely")
 	ErrActionNotFound     = errors.New("Action not been initialize")
-	ErrLogsNotDefine      = errors.New("Zap logger has not been defined")
+	ErrLogsNotDefined     = errors.New("Zap logger has not been defined")
+	ErrDirNotExist        = errors.New("Directory not valid/exist")
 
 	logs *zap.Logger
 )
@@ -63,53 +69,59 @@ func New(opt *Options) (*Command, error) {
 	// Set the logger for the command package
 	logs = opt.Logs
 
-	// Set dispatcher inside command struct
-	c.dispatcher = make(map[string]func() error)
-	c.dispatcher["update"] = c.updateGit
-	c.dispatcher["update-gitlab"] = c.updateGitlab
-
 	return &c, nil
 }
 
+// Validate given options is enough to do the task
+// Credential, action performed, directory and the logs
 func validate(opt *Options) error {
-
-	if _, err := os.Stat(opt.Dir); err != nil {
-		return err
-	}
-
-	if opt.Auth.Username == "" || opt.Auth.Password == "" {
-		return ErrCredentialNotFound
-	}
 
 	if opt.Action == "" {
 		return ErrActionNotFound
 	}
 
+	if _, err := os.Stat(opt.Dir); err != nil {
+		return ErrDirNotExist
+	}
+
+	if opt.Auth == nil ||
+		(opt.Auth != nil && (opt.Auth.Username == "" || opt.Auth.Password == "")) {
+		return ErrCredentialNotFound
+	}
+
 	if opt.Logs == nil {
-		return ErrLogsNotDefine
+		return ErrLogsNotDefined
 	}
 
 	return nil
 }
 
 type Command struct {
-	verbose    bool
-	action     string
-	dir        string
-	auth       *Auth
-	hardReset  bool
-	baseurl    string
-	dispatcher map[string]func() error
+	verbose   bool
+	action    string
+	dir       string
+	auth      *Auth
+	hardReset bool
+	baseurl   string
 }
 
 // Execute action based on action key provided
 func (c *Command) Execute() error {
 
-	if c.dispatcher[c.action] == nil {
+	dispatcher := map[string]func() error{
+		"update": func() error {
+			return c.updateGit()
+		},
+		"update-gitlab": func() error {
+			return c.updateGitlab()
+		},
+	}
+
+	if dispatcher[c.action] == nil {
 		return ErrCommandNotFound
 	}
 
-	err := c.dispatcher[c.action]()
+	err := dispatcher[c.action]()
 	if err != nil {
 		return err
 	}
