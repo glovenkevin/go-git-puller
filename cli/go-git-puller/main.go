@@ -15,7 +15,7 @@ func init() {
 	conf := zap.NewProductionConfig()
 	conf.Encoding = "console"
 	conf.EncoderConfig = zap.NewDevelopmentEncoderConfig()
-	conf.Level = zap.NewAtomicLevelAt(zap.ErrorLevel)
+	conf.Level = zap.NewAtomicLevelAt(zap.InfoLevel)
 	conf.DisableStacktrace = true
 
 	log, _ = conf.Build()
@@ -31,7 +31,7 @@ func main() {
 
 	// Set logger into debug level if verbose was activated
 	if cli.Verbose {
-		log.WithOptions(zap.WrapCore(
+		log = log.WithOptions(zap.WrapCore(
 			func(c zapcore.Core) zapcore.Core {
 				return zapcore.NewCore(zapcore.NewConsoleEncoder(zap.NewDevelopmentEncoderConfig()),
 					zapcore.AddSync(os.Stderr), zap.DebugLevel)
