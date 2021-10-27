@@ -5,6 +5,8 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"regexp"
+	"strings"
 )
 
 type Cli struct {
@@ -68,6 +70,7 @@ func (c *Cli) Parse() error {
 var (
 	ErrCredentialNotFound = errors.New("Username/Password/Token has not ben set")
 	ErrActionNotFound     = errors.New("Action not defined")
+	ErrDirectoryNotValid  = errors.New("Directory is not valid")
 )
 
 // Validate mandatory input that has been set
@@ -86,6 +89,15 @@ func (c *Cli) Validate() error {
 
 	if c.Rootdir == "" {
 		c.Rootdir = "."
+	}
+
+	if match, _ := regexp.MatchString(`[/\\]{2,}$`, c.Rootdir); match {
+		return ErrDirectoryNotValid
+	}
+
+	if strings.HasSuffix(c.Rootdir, "\\") || strings.HasSuffix(c.Rootdir, "/") {
+		c.Rootdir = strings.TrimSuffix(c.Rootdir, "/")
+		c.Rootdir = strings.TrimSuffix(c.Rootdir, "\\")
 	}
 
 	if _, err := os.Stat(c.Rootdir); err != nil {

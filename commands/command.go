@@ -3,6 +3,8 @@ package commands
 import (
 	"errors"
 	"os"
+	"regexp"
+	"strings"
 
 	"github.com/schollz/progressbar/v3"
 	"go.uber.org/zap"
@@ -93,6 +95,15 @@ func validate(opt *Options) error {
 		return ErrActionNotFound
 	}
 
+	if match, _ := regexp.MatchString(`[/\\]{2,}$`, opt.Dir); match {
+		return ErrDirNotExist
+	}
+
+	if strings.HasSuffix(opt.Dir, "\\") || strings.HasSuffix(opt.Dir, "/") {
+		opt.Dir = strings.TrimSuffix(opt.Dir, "/")
+		opt.Dir = strings.TrimSuffix(opt.Dir, "\\")
+	}
+
 	if _, err := os.Stat(opt.Dir); err != nil {
 		return ErrDirNotExist
 	}
@@ -128,6 +139,9 @@ func (c *Command) Execute() error {
 		},
 		"update-gitlab": func() error {
 			return c.updateGitlab()
+		},
+		"clone-gitlab": func() error {
+			return c.CloneGitlab()
 		},
 	}
 
