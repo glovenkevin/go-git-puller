@@ -6,14 +6,20 @@ import (
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
+	"github.com/schollz/progressbar/v3"
 	"github.com/xanzy/go-gitlab"
 )
-
-var auth *Auth
 
 // Update gitlab tree using given credential and root directory
 // Do update if the repo/group present or clone/create the directory of repo is not present
 func (c *Command) updateGitlab() error {
+
+	if c.bar != nil {
+		_ = c.bar.RenderBlank()
+		defer func() {
+			_ = c.bar.Finish()
+		}()
+	}
 
 	var clientFuncOpt gitlab.ClientOptionFunc = nil
 	if c.baseurl != "" {
@@ -42,8 +48,8 @@ func (c *Command) updateGitlab() error {
 	for _, group := range rootGroups {
 		path := c.dir + "/" + group.Name
 		createDir(path)
-		getSubgroups(client, group, path)
-		getProjects(client, group, path)
+		getSubgroups(client, group, path, c.bar)
+		getProjects(client, group, path, c.bar)
 	}
 
 	return nil
@@ -51,13 +57,13 @@ func (c *Command) updateGitlab() error {
 
 // List subgroups inside a gitlab group. If there is subgroup than do
 // Recursive check again if there is project or a subgroup again
-func getSubgroups(c *gitlab.Client, g *gitlab.Group, parent string) {
+func getSubgroups(c *gitlab.Client, g *gitlab.Group, parent string, bar *progressbar.ProgressBar) {
 	subGroups, _, _ := c.Groups.ListSubgroups(g.ID, nil)
 	for _, group := range subGroups {
 		path := parent + "/" + group.Name
 		createDir(path)
-		getSubgroups(c, group, path)
-		getProjects(c, group, path)
+		getSubgroups(c, group, path, bar)
+		getProjects(c, group, path, bar)
 	}
 }
 
@@ -70,7 +76,7 @@ func createDir(path string) {
 }
 
 // List project inside gitlab group and do update or clone the project
-func getProjects(c *gitlab.Client, g *gitlab.Group, parent string) {
+func getProjects(c *gitlab.Client, g *gitlab.Group, parent string, bar *progressbar.ProgressBar) {
 
 	projects, _, err := c.Groups.ListGroupProjects(g.ID, nil)
 	if err != nil {
@@ -79,43 +85,53 @@ func getProjects(c *gitlab.Client, g *gitlab.Group, parent string) {
 	}
 
 	for _, project := range projects {
-		cloneOrUpdateRepo(project, parent)
+		cloneOrUpdateRepo(project, parent, bar)
 	}
 
 }
 
 // Check wether the repository is Exist or not
 // Do update repo if exist or clone repo if it not present in directory
-func cloneOrUpdateRepo(p *gitlab.Project, rootDir string) {
+func cloneOrUpdateRepo(p *gitlab.Project, rootDir string, bar *progressbar.ProgressBar) {
 	path := rootDir + "/" + p.Name
 	_, err := os.Stat(path)
 	if err != nil {
 		node := makeNode(&nodeOptions{
-			path: path,
-			auth: auth,
+			path:      path,
+			hardReset: false,
+			bar:       bar,
 		})
 		err = node.updateRepo()
 		if err != nil {
 			logs.Warn(err.Error())
 		}
 	} else {
-		cloneRepo(path, p.WebURL)
+		cloneRepo(path, p, bar)
 	}
 }
 
 // Clone repo from given path and url
 // Repo name will using dir name (include case sensitive)
-func cloneRepo(path string, url string) {
+func cloneRepo(path string, p *gitlab.Project, bar *progressbar.ProgressBar) {
 	var option *git.CloneOptions = &git.CloneOptions{
-		URL: url,
+		URL: p.WebURL,
 		Auth: &http.BasicAuth{
 			Username: auth.Username,
 			Password: auth.Password,
 		},
 	}
 
+	if bar != nil {
+		bar.Describe("Clone: " + p.Name)
+	}
+
 	_, err := git.PlainClone(path, false, option)
 	if err != nil {
 		logs.Warn(err.Error())
+		return
+	}
+
+	if bar != nil {
+		_ = bar.Add(1)
 	}
 }

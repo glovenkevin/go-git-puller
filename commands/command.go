@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 
+	"github.com/schollz/progressbar/v3"
 	"go.uber.org/zap"
 )
 
@@ -48,9 +49,14 @@ var (
 	ErrLogsNotDefined     = errors.New("Zap logger has not been defined")
 	ErrDirNotExist        = errors.New("Directory not valid/exist")
 
+	// default logger for the package command (zap logger)
 	logs *zap.Logger
+
+	// Authentication credential used for pull or clone repository
+	auth *Auth
 )
 
+// Generate new command struct for executing update
 func New(opt *Options) (*Command, error) {
 
 	if err := validate(opt); err != nil {
@@ -68,6 +74,13 @@ func New(opt *Options) (*Command, error) {
 
 	// Set the logger for the command package
 	logs = opt.Logs
+
+	auth = opt.Auth
+
+	if !opt.Verbose {
+		c.bar = progressbar.Default(-1)
+		c.bar.Describe("Start executing action ...")
+	}
 
 	return &c, nil
 }
@@ -103,6 +116,7 @@ type Command struct {
 	auth      *Auth
 	hardReset bool
 	baseurl   string
+	bar       *progressbar.ProgressBar
 }
 
 // Execute action based on action key provided
