@@ -44,8 +44,8 @@ func New() *Cli {
 func (c *Cli) Parse() error {
 
 	flag.Usage = func() {
-		fmt.Fprintln(os.Stderr, "Usage Command go-git-pull [-c/-action=action] [-option=option ...]")
-		fmt.Fprintln(os.Stderr, "\tAction: update, *update-gitlab, *pull-gitlab")
+		fmt.Fprintln(os.Stderr, "Usage Command go-git-pull [-c/-action action] [-option option ...]")
+		fmt.Fprintln(os.Stderr, "\tAction: update, update-gitlab, clone-gitlab")
 
 		fmt.Fprintln(os.Stderr, "\nList option available: ")
 		flag.CommandLine.PrintDefaults()
@@ -79,7 +79,7 @@ func (c *Cli) Parse() error {
 
 var (
 	ErrCredentialNotFound  = errors.New("Username/Password/Token has not ben set")
-	ErrActionNotFound      = errors.New("Action not defined")
+	ErrActionNotFound      = errors.New("Action was not specified")
 	ErrDirectoryNotValid   = errors.New("Directory is not valid")
 	ErrGroupNameNotValid   = errors.New("Group name not valid")
 	ErrProjectNameNotValid = errors.New("Project name not valid")
