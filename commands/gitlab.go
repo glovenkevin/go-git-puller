@@ -145,11 +145,11 @@ func cloneRepo(path string, p *gitlab.Project, bar *progressbar.ProgressBar) {
 		ReferenceName: plumbing.Master,
 		SingleBranch:  true,
 		Tags:          git.NoTags,
-		Progress:      os.Stdout,
 	}
 
 	if bar != nil {
 		bar.Describe("Clone: " + p.Name)
+		option.Progress = os.Stdout
 	}
 
 	logs.Sugar().Debugf("Clonning %v", p.Name)

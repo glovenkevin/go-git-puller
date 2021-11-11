@@ -131,8 +131,15 @@ func (n *node) updateRepo() error {
 	repo, _ := git.PlainOpen(n.path)
 	logs.Sugar().Debugf("Updating %v", n.name)
 
+	gitPullOption := git.PullOptions{
+		RemoteName:   git.DefaultRemoteName,
+		Auth:         auth,
+		SingleBranch: true,
+	}
+
 	if n.bar != nil {
 		n.bar.Describe("Updating " + n.name)
+		gitPullOption.Progress = os.Stdout
 	}
 
 	_ = repo.Fetch(&git.FetchOptions{Auth: auth})
@@ -155,13 +162,6 @@ func (n *node) updateRepo() error {
 	})
 	if err != nil {
 		return err
-	}
-
-	gitPullOption := git.PullOptions{
-		RemoteName:   git.DefaultRemoteName,
-		Auth:         auth,
-		Progress:     os.Stdout,
-		SingleBranch: true,
 	}
 
 	// Sometimes happend error reference has changed,
