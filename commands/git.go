@@ -158,8 +158,10 @@ func (n *node) updateRepo() error {
 	}
 
 	gitPullOption := git.PullOptions{
-		RemoteName: "origin",
-		Auth:       auth,
+		RemoteName:   git.DefaultRemoteName,
+		Auth:         auth,
+		Progress:     os.Stdout,
+		SingleBranch: true,
 	}
 
 	// Sometimes happend error reference has changed,

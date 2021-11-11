@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/schollz/progressbar/v3"
 	"github.com/xanzy/go-gitlab"
@@ -141,6 +142,10 @@ func cloneRepo(path string, p *gitlab.Project, bar *progressbar.ProgressBar) {
 			Username: auth.Username,
 			Password: auth.Password,
 		},
+		ReferenceName: plumbing.Master,
+		SingleBranch:  true,
+		Tags:          git.NoTags,
+		Progress:      os.Stdout,
 	}
 
 	if bar != nil {

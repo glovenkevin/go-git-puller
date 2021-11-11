@@ -42,3 +42,7 @@ Example for update using gitlab with token
 ```
 go-git-puller -c=update-gitlab -verbose=true -path=D:/path/gitlab -u=http://172.20.5.20/ -t=5BevGkY-asdf
 ```
+
+## TO-DO
+
+Currently working on adding `Except Group` and `Except Project` feature. What it does is ignoring Group or Project specified by name in parameter and not doing any action on it.

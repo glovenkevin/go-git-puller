@@ -20,6 +20,12 @@ type Options struct {
 	// Define root directory of the action
 	Dir string
 
+	// Exclude Group name, separated by commas
+	Exgroup string
+
+	// Exclude Project name, separated by commas
+	Exproject string
+
 	// a flag that used to make decision wether it's need to be hard reset
 	// before the pull being executed
 	Hardreset bool
@@ -70,6 +76,8 @@ func New(opt *Options) (*Command, error) {
 		action:    opt.Action,
 		auth:      opt.Auth,
 		dir:       opt.Dir,
+		exGroup:   opt.Exgroup,
+		exProject: opt.Exproject,
 		hardReset: opt.Hardreset,
 		baseurl:   opt.Baseurl,
 	}
@@ -124,6 +132,8 @@ type Command struct {
 	verbose   bool
 	action    string
 	dir       string
+	exGroup   string
+	exProject string
 	auth      *Auth
 	hardReset bool
 	baseurl   string
