@@ -159,6 +159,7 @@ func cloneRepo(path string, p *gitlab.Project, bar *progressbar.ProgressBar) {
 		return
 	}
 	logs.Sugar().Debugf("Finish Clonning %v", p.Name)
+	logs.Sugar().Debugf("Path Clone: %v/%v", path, p.Name)
 
 	if bar != nil {
 		_ = bar.Add(1)

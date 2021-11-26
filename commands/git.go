@@ -142,7 +142,6 @@ func (n *node) updateRepo() error {
 		gitPullOption.Progress = os.Stdout
 	}
 
-	_ = repo.Fetch(&git.FetchOptions{Auth: auth})
 	workTree, _ := repo.Worktree()
 	if n.hardReset {
 		_ = workTree.Reset(&git.ResetOptions{Mode: git.HardReset})
