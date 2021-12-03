@@ -5,17 +5,26 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"regexp"
+	"strings"
 )
 
 type Cli struct {
+	// Action Needs parameter
 	Verbose   bool
 	Rootdir   string
 	Hardreset bool
 	Action    string
 	Baseurl   string
-	Username  string
-	Password  string
-	Token     string
+
+	// Exclude Feature
+	ExGroups  string
+	ExProject string
+
+	// Credential
+	Username string
+	Password string
+	Token    string
 }
 
 // Return new Cli struct for consuming
@@ -35,8 +44,8 @@ func New() *Cli {
 func (c *Cli) Parse() error {
 
 	flag.Usage = func() {
-		fmt.Fprintln(os.Stderr, "Usage Command go-git-pull [-c/-action=action] [-option=option ...]")
-		fmt.Fprintln(os.Stderr, "\tAction: update, *update-gitlab, *pull-gitlab")
+		fmt.Fprintln(os.Stderr, "Usage Command go-git-pull [-c/-action action] [-option option ...]")
+		fmt.Fprintln(os.Stderr, "\tAction: update, update-gitlab, clone-gitlab")
 
 		fmt.Fprintln(os.Stderr, "\nList option available: ")
 		flag.CommandLine.PrintDefaults()
@@ -57,6 +66,9 @@ func (c *Cli) Parse() error {
 	flag.StringVar(&c.Token, "t", "", "Token for authentication")
 	flag.StringVar(&c.Token, "token", "", "Token for authentication")
 
+	flag.StringVar(&c.ExGroups, "eg", "", "Exclude group specified by group name. Put multiple groups separately with commas")
+	flag.StringVar(&c.ExProject, "ep", "", "Exclude project specified by project name. Put multiple projects separately with commas")
+
 	flag.StringVar(&c.Rootdir, "path", ".", "Set Working directory root path")
 	flag.BoolVar(&c.Verbose, "verbose", false, "Activate verbose/debug print")
 	flag.BoolVar(&c.Hardreset, "hard-reset", false, "Set false to use softreset or otherwise")
@@ -66,8 +78,11 @@ func (c *Cli) Parse() error {
 }
 
 var (
-	ErrCredentialNotFound = errors.New("Username/Password/Token has not ben set")
-	ErrActionNotFound     = errors.New("Action not defined")
+	ErrCredentialNotFound  = errors.New("Username/Password/Token has not ben set")
+	ErrActionNotFound      = errors.New("Action was not specified")
+	ErrDirectoryNotValid   = errors.New("Directory is not valid")
+	ErrGroupNameNotValid   = errors.New("Group name not valid")
+	ErrProjectNameNotValid = errors.New("Project name not valid")
 )
 
 // Validate mandatory input that has been set
@@ -84,17 +99,35 @@ func (c *Cli) Validate() error {
 		return ErrCredentialNotFound
 	}
 
+	if c.Token != "" {
+		c.Username = "token"
+		c.Password = c.Token
+	}
+
 	if c.Rootdir == "" {
 		c.Rootdir = "."
+	}
+
+	if match, _ := regexp.MatchString(`[/\\]{2,}$`, c.Rootdir); match {
+		return ErrDirectoryNotValid
+	}
+
+	if strings.HasSuffix(c.Rootdir, "\\") || strings.HasSuffix(c.Rootdir, "/") {
+		c.Rootdir = strings.TrimSuffix(c.Rootdir, "/")
+		c.Rootdir = strings.TrimSuffix(c.Rootdir, "\\")
 	}
 
 	if _, err := os.Stat(c.Rootdir); err != nil {
 		return err
 	}
 
-	if c.Token != "" {
-		c.Username = "token"
-		c.Password = c.Token
+	regex := regexp.MustCompile("[^a-zA-Z0-9,_-]+")
+	if c.ExGroups != "" && regex.MatchString(c.ExGroups) {
+		return ErrGroupNameNotValid
+	}
+
+	if c.ExProject != "" && regex.MatchString(c.ExProject) {
+		return ErrProjectNameNotValid
 	}
 
 	return nil

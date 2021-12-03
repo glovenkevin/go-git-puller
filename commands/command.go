@@ -3,6 +3,8 @@ package commands
 import (
 	"errors"
 	"os"
+	"regexp"
+	"strings"
 
 	"github.com/schollz/progressbar/v3"
 	"go.uber.org/zap"
@@ -17,6 +19,12 @@ type Options struct {
 
 	// Define root directory of the action
 	Dir string
+
+	// Exclude Group name, separated by commas
+	Exgroup string
+
+	// Exclude Project name, separated by commas
+	Exproject string
 
 	// a flag that used to make decision wether it's need to be hard reset
 	// before the pull being executed
@@ -68,6 +76,8 @@ func New(opt *Options) (*Command, error) {
 		action:    opt.Action,
 		auth:      opt.Auth,
 		dir:       opt.Dir,
+		exGroup:   opt.Exgroup,
+		exProject: opt.Exproject,
 		hardReset: opt.Hardreset,
 		baseurl:   opt.Baseurl,
 	}
@@ -93,6 +103,15 @@ func validate(opt *Options) error {
 		return ErrActionNotFound
 	}
 
+	if match, _ := regexp.MatchString(`[/\\]{2,}$`, opt.Dir); match {
+		return ErrDirNotExist
+	}
+
+	if strings.HasSuffix(opt.Dir, "\\") || strings.HasSuffix(opt.Dir, "/") {
+		opt.Dir = strings.TrimSuffix(opt.Dir, "/")
+		opt.Dir = strings.TrimSuffix(opt.Dir, "\\")
+	}
+
 	if _, err := os.Stat(opt.Dir); err != nil {
 		return ErrDirNotExist
 	}
@@ -113,6 +132,8 @@ type Command struct {
 	verbose   bool
 	action    string
 	dir       string
+	exGroup   string
+	exProject string
 	auth      *Auth
 	hardReset bool
 	baseurl   string
@@ -128,6 +149,9 @@ func (c *Command) Execute() error {
 		},
 		"update-gitlab": func() error {
 			return c.updateGitlab()
+		},
+		"clone-gitlab": func() error {
+			return c.CloneGitlab()
 		},
 	}
 
