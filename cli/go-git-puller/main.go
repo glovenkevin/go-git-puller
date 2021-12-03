@@ -39,25 +39,29 @@ func main() {
 		))
 	}
 
+	cmd, err := constructCommand(cli)
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+
+	err = cmd.Execute()
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+}
+
+func constructCommand(c *cli.Cli) (*commands.Command, error) {
 	command, err := commands.New(&commands.Options{
-		Verbose: cli.Verbose,
-		Action:  cli.Action,
-		Dir:     cli.Rootdir,
-		Baseurl: cli.Baseurl,
+		Verbose: c.Verbose,
+		Action:  c.Action,
+		Dir:     c.Rootdir,
+		Baseurl: c.Baseurl,
 		Auth: &commands.Auth{
-			Username: cli.Username,
-			Password: cli.Password,
+			Username: c.Username,
+			Password: c.Password,
 		},
 		Logs: log,
 	})
 
-	if err != nil {
-		log.Fatal(err.Error())
-		return
-	}
-
-	err = command.Execute()
-	if err != nil {
-		log.Fatal(err.Error())
-	}
+	return command, err
 }
