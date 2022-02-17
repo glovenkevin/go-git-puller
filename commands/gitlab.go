@@ -112,7 +112,7 @@ func (c *Command) CloneGitlab() error {
 	}
 
 	for _, group := range rootGroups {
-		if group.Name != "WingsDev" && group.Name != "PDA" {
+		if group.Name != "WingsDev" {
 			continue
 		}
 
@@ -140,9 +140,6 @@ func (c *Command) CloneGitlab() error {
 func (n *nodeGitlab) getSubgroups() {
 	subGroups, _, _ := n.client.Groups.ListSubgroups(n.group.ID, nil)
 	for _, group := range subGroups {
-		if group.Name == "PDA" {
-			continue
-		}
 
 		path := n.Rootdir + "/" + group.Name
 		createDir(path)
