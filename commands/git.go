@@ -9,6 +9,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/schollz/progressbar/v3"
+	"go.uber.org/zap"
 )
 
 type node struct {
@@ -16,6 +17,8 @@ type node struct {
 	path      string
 	hardReset bool
 	bar       *progressbar.ProgressBar
+	log       *zap.Logger
+	auth      *Auth
 }
 
 type nodeOptions struct {
@@ -27,6 +30,12 @@ type nodeOptions struct {
 
 	// Set the main progress bar
 	bar *progressbar.ProgressBar
+
+	// Set the default logger for the node
+	log *zap.Logger
+
+	// Set the default auth method (username/password or with token)
+	auth *Auth
 }
 
 // Start updating git folder from the given root directory.
@@ -45,6 +54,8 @@ func (c *Command) updateGit() error {
 		path:      c.dir,
 		hardReset: c.hardReset,
 		bar:       c.bar,
+		log:       c.log,
+		auth:      c.auth,
 	})
 
 	err := node.updateProject()
@@ -57,7 +68,7 @@ func (c *Command) updateGit() error {
 		return err
 	}
 
-	logs.Debug("Finish updating project")
+	c.log.Debug("Finish updating project")
 	return nil
 }
 
@@ -70,6 +81,8 @@ func makeNode(opt *nodeOptions) *node {
 		name:      arrPath[len(arrPath)-1],
 		hardReset: opt.hardReset,
 		bar:       opt.bar,
+		log:       opt.log,
+		auth:      opt.auth,
 	}
 	return &node
 }
@@ -93,7 +106,7 @@ func (n *node) updateProject() error {
 		}
 
 		dirPath := n.path + "/" + dirEntry.Name()
-		logs.Sugar().Debug(dirPath)
+		n.log.Sugar().Debug(dirPath)
 
 		node := makeNode(&nodeOptions{
 			path:      dirPath,
@@ -124,12 +137,12 @@ func (n *node) updateRepo() error {
 
 	var err error
 	auth := &http.BasicAuth{
-		Username: auth.Username,
-		Password: auth.Password,
+		Username: n.auth.Username,
+		Password: n.auth.Password,
 	}
 
 	repo, _ := git.PlainOpen(n.path)
-	logs.Sugar().Debugf("Updating %v", n.name)
+	n.log.Sugar().Debugf("Updating %v", n.name)
 
 	gitPullOption := git.PullOptions{
 		RemoteName:   git.DefaultRemoteName,
@@ -168,17 +181,17 @@ func (n *node) updateRepo() error {
 	for {
 		err = workTree.Pull(&gitPullOption)
 		if err == nil || (err != nil && strings.Contains(err.Error(), "up-to-date")) {
-			logs.Sugar().Debugf("%v is pulled", n.name)
+			n.log.Sugar().Debugf("%v is pulled", n.name)
 			break
 		} else if strings.HasSuffix(err.Error(), "reference has changed concurrently") {
 			time.Sleep(5 * time.Second)
-			logs.Sugar().Debugf("Error Ref Changed on repo %v, wait for 5s", n.name)
+			n.log.Sugar().Debugf("Error Ref Changed on repo %v, wait for 5s", n.name)
 		} else {
 			return err
 		}
 	}
 
-	logs.Sugar().Debugf("Finish updating repo %v", n.name)
+	n.log.Sugar().Debugf("Finish updating repo %v", n.name)
 	if n.bar != nil {
 		_ = n.bar.Add(1)
 	}
