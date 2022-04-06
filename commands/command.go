@@ -40,6 +40,21 @@ type Options struct {
 	Logs *zap.Logger
 }
 
+type Command struct {
+	verbose   bool
+	action    string
+	dir       string
+	exGroup   string
+	exProject string
+	auth      *Auth
+	hardReset bool
+	baseurl   string
+	bar       *progressbar.ProgressBar
+
+	// default logger for the package command (zap logger)
+	log *zap.Logger
+}
+
 type Auth struct {
 	// Username being used for authentication with git.
 	// If this token was set, then this field will have default value "token" (acording to go-git docs to use like this)
@@ -56,12 +71,6 @@ var (
 	ErrActionNotFound     = errors.New("Action not been initialize")
 	ErrLogsNotDefined     = errors.New("Zap logger has not been defined")
 	ErrDirNotExist        = errors.New("Directory not valid/exist")
-
-	// default logger for the package command (zap logger)
-	logs *zap.Logger
-
-	// Authentication credential used for pull or clone repository
-	auth *Auth
 )
 
 // Generate new command struct for executing update
@@ -80,15 +89,11 @@ func New(opt *Options) (*Command, error) {
 		exProject: opt.Exproject,
 		hardReset: opt.Hardreset,
 		baseurl:   opt.Baseurl,
+		log:       opt.Logs,
 	}
 
-	// Set the logger for the command package
-	logs = opt.Logs
-
-	auth = opt.Auth
-
 	if !opt.Verbose {
-		c.bar = progressbar.Default(-1)
+		c.bar = progressbar.Default(1)
 		c.bar.Describe("Start executing action ...")
 	}
 
@@ -128,22 +133,8 @@ func validate(opt *Options) error {
 	return nil
 }
 
-type Command struct {
-	verbose   bool
-	action    string
-	dir       string
-	exGroup   string
-	exProject string
-	auth      *Auth
-	hardReset bool
-	baseurl   string
-	bar       *progressbar.ProgressBar
-}
-
-// Execute action based on action key provided
-func (c *Command) Execute() error {
-
-	dispatcher := map[string]func() error{
+func (c *Command) getCommandDispatcher() map[string]func() error {
+	return map[string]func() error{
 		"update": func() error {
 			return c.updateGit()
 		},
@@ -154,7 +145,12 @@ func (c *Command) Execute() error {
 			return c.CloneGitlab()
 		},
 	}
+}
 
+// Execute action based on action key provided
+func (c *Command) Execute() error {
+
+	dispatcher := c.getCommandDispatcher()
 	if dispatcher[c.action] == nil {
 		return ErrCommandNotFound
 	}

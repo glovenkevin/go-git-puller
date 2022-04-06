@@ -7,6 +7,9 @@ import (
 	"os"
 	"regexp"
 	"strings"
+
+	"github.com/glovenkevin/go-git-puller/commands"
+	"go.uber.org/zap"
 )
 
 type Cli struct {
@@ -131,4 +134,20 @@ func (c *Cli) Validate() error {
 	}
 
 	return nil
+}
+
+func (c *Cli) NewCommand(zLog *zap.Logger) (*commands.Command, error) {
+	command, err := commands.New(&commands.Options{
+		Verbose: c.Verbose,
+		Action:  c.Action,
+		Dir:     c.Rootdir,
+		Baseurl: c.Baseurl,
+		Auth: &commands.Auth{
+			Username: c.Username,
+			Password: c.Password,
+		},
+		Logs: zLog,
+	})
+
+	return command, err
 }
