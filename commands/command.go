@@ -93,7 +93,7 @@ func New(opt *Options) (*Command, error) {
 	}
 
 	if !opt.Verbose {
-		c.bar = progressbar.Default(-1)
+		c.bar = progressbar.Default(1)
 		c.bar.Describe("Start executing action ...")
 	}
 

@@ -32,7 +32,6 @@ func (c *Command) updateGitlab() error {
 
 	c.log.Debug("Start proccess update ...")
 	if c.bar != nil {
-		_ = c.bar.RenderBlank()
 		defer func() {
 			_ = c.bar.Finish()
 		}()
@@ -77,11 +76,13 @@ func (c *Command) updateGitlab() error {
 
 		wg.Add(1)
 		go node.getSubgroups()
-		wg.Add(1)
-		go node.updateProject()
+		node.updateProject()
 	}
 	wg.Wait()
 
+	if c.bar != nil {
+		_ = c.bar.Add(1)
+	}
 	c.log.Debug("Finish execute update-gitlab action")
 	return nil
 }
@@ -93,7 +94,6 @@ func (c *Command) CloneGitlab() error {
 
 	c.log.Debug("Start proccess clone ...")
 	if c.bar != nil {
-		_ = c.bar.RenderBlank()
 		defer func() {
 			_ = c.bar.Finish()
 		}()
@@ -123,10 +123,6 @@ func (c *Command) CloneGitlab() error {
 	}
 
 	for _, group := range rootGroups {
-		if group.Name != "WingsDev" {
-			continue
-		}
-
 		path := c.dir + "/" + group.Name
 		createDir(path)
 
@@ -142,11 +138,13 @@ func (c *Command) CloneGitlab() error {
 
 		wg.Add(1)
 		go node.validateSubgroups()
-		wg.Add(1)
-		go node.validateProject()
+		node.validateProject()
 	}
 	wg.Wait()
 
+	if c.bar != nil {
+		_ = c.bar.Add(1)
+	}
 	c.log.Debug("Finish execute clone-gitlab action")
 	return nil
 }
@@ -157,7 +155,12 @@ func (c *Command) CloneGitlab() error {
 func (n *nodeGitlab) getSubgroups() {
 	defer n.wg.Done()
 
-	subGroups, _, _ := n.client.Groups.ListSubgroups(n.group.ID, nil)
+	subGroups, _, err := n.client.Groups.ListSubGroups(n.group.ID, nil)
+	if err != nil {
+		n.log.Error(err.Error())
+		return
+	}
+
 	for _, group := range subGroups {
 
 		path := n.Rootdir + "/" + group.Name
@@ -176,16 +179,13 @@ func (n *nodeGitlab) getSubgroups() {
 
 		n.wg.Add(1)
 		go node.getSubgroups()
-		n.wg.Add(1)
-		go node.updateProject()
+		node.updateProject()
 	}
 	n.wg.Wait()
 }
 
 // List project inside gitlab group and perform update or clone the project
 func (n *nodeGitlab) updateProject() {
-	defer n.wg.Done()
-
 	projects, _, err := n.client.Groups.ListGroupProjects(n.group.ID, nil)
 	if err != nil {
 		n.log.Error(err.Error())
@@ -205,6 +205,7 @@ func (n *nodeGitlab) updateProject() {
 // It's also check if there is a project inside current group,
 // if exist but not present in current directory then it will clone the project otherwise do nothing.
 func (n *nodeGitlab) validateSubgroups() {
+	defer n.wg.Done()
 	n.getAllSubgroups()
 
 	listGroup := ""
@@ -230,8 +231,7 @@ func (n *nodeGitlab) validateSubgroups() {
 
 		n.wg.Add(1)
 		go node.validateSubgroups()
-		n.wg.Add(1)
-		go node.validateProject()
+		node.validateProject()
 	}
 
 	n.wg.Wait()
@@ -247,7 +247,7 @@ func (n *nodeGitlab) getAllSubgroups() {
 		err           error
 	)
 
-	subGroups, resp, err = n.client.Groups.ListSubgroups(n.group.ID, nil)
+	subGroups, resp, err = n.client.Groups.ListSubGroups(n.group.ID, nil)
 	if err != nil {
 		n.log.Error(err.Error())
 		return
@@ -257,7 +257,7 @@ func (n *nodeGitlab) getAllSubgroups() {
 
 	if resp.TotalPages > 1 {
 		for resp.NextPage != 0 {
-			nextSubGroups, resp, _ = n.client.Groups.ListSubgroups(n.group.ID, &gitlab.ListSubgroupsOptions{
+			nextSubGroups, resp, _ = n.client.Groups.ListSubGroups(n.group.ID, &gitlab.ListSubGroupsOptions{
 				ListOptions: gitlab.ListOptions{
 					Page: resp.NextPage,
 				},
@@ -280,16 +280,19 @@ func (n *nodeGitlab) validateProject() {
 		listProject += project.Name + ","
 	}
 	n.log.Sugar().Debugf("List Project in group %v: %v", n.group.Name, listProject)
+	n.bar.ChangeMax64(int64(n.bar.GetMax() + len(*n.projects)))
 
 	for _, project := range *n.projects {
+		if n.bar != nil {
+			_ = n.bar.Add(1)
+		}
+
 		path := n.Rootdir + "/" + project.Name
 		_, err := os.Stat(path)
 		if os.IsNotExist(err) {
-			n.wg.Add(1)
-			go n.cloneRepo(path, project)
+			n.cloneRepo(path, project)
 		}
 	}
-	n.wg.Wait()
 }
 
 func (n *nodeGitlab) getAllProjects() {
@@ -356,36 +359,28 @@ func (n *nodeGitlab) cloneOrUpdateRepo(p *gitlab.Project) error {
 // Clone repo from given path and url
 // Repo name will using dir name (include case sensitive)
 func (n *nodeGitlab) cloneRepo(path string, p *gitlab.Project) {
-	defer n.wg.Done()
-
 	var option *git.CloneOptions = &git.CloneOptions{
 		URL: p.HTTPURLToRepo,
 		Auth: &http.BasicAuth{
 			Username: n.auth.Username,
 			Password: n.auth.Password,
 		},
-		Depth:             1,
-		ReferenceName:     plumbing.Master,
-		SingleBranch:      true,
-		Tags:              git.NoTags,
-		RecurseSubmodules: git.NoRecurseSubmodules,
+		Depth:         1,
+		ReferenceName: plumbing.HEAD,
+		SingleBranch:  true,
+		Tags:          git.NoTags,
 	}
 
 	if n.bar != nil {
 		n.bar.Describe("Clone: " + p.Name)
-		option.Progress = os.Stdout
 	}
 
 	n.log.Sugar().Debugf("Clonning %v", p.Name)
 	_, err := git.PlainClone(path, false, option)
 	if err != nil {
-		n.log.Sugar().Errorf("Repo %v: %v", p.Name, err.Error())
+		n.log.Sugar().Errorf("Repo %v: %v, Path: %v", p.Name, err.Error(), path)
 		return
 	}
 	n.log.Sugar().Debugf("Finish Clonning %v", p.Name)
 	n.log.Sugar().Debugf("Path Clone: %v/%v", path, p.Name)
-
-	if n.bar != nil {
-		_ = n.bar.Add(1)
-	}
 }
