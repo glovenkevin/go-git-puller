@@ -40,7 +40,7 @@ type nodeOptions struct {
 
 // Start updating git folder from the given root directory.
 // The update was doing recursive function for every node folder inside given directory
-func (c *Command) updateGit() error {
+func (c *Command) UpdateGit() error {
 
 	if c.bar != nil {
 		_ = c.bar.RenderBlank()

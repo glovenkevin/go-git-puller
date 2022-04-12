@@ -11,7 +11,6 @@ Below are the command parameter that can be used to execute the programs
 | Flag          | Default Value | Possible Value | Description | Mandatory |
 |---------------|---------------|----------------|-------------|-----------|
 | `-h`            | -  | - | this can be used to show all of available option | No |
-| `-c`, `-action`   | - | `update`, `update-gitlab`, `clone-gitlab` | this flag are giving information about what action being executed | Yes |
 | `-u`, `-url`      | `https://gitlab.com/` | Ex: `http://172.20.3.50/` | Set the default url of the repository. This flag is mandatory for `update-gitlab` action for definning your repo (for example if you are using your own local gitlab repo like at my place) | Optional |
 | `-U`, `-username` | - | Ex: kevin | Set the username for authentication | Yes |
 | `-P`, `-password` | - | your password | Set the password for authentication | Yes |
