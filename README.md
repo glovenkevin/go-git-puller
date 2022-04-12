@@ -18,6 +18,8 @@ Below are the command parameter that can be used to execute the programs
 | `-path`         | `.` | `/path/to/dir` | Set root path for action performed. Default value is current directory | No |
 | `-verbose`      | `false` | - | Set program output. If it's being set then all the log information would be printed. Default is false | No |
 | `-hard-reset`   | `false` | - | Tell the program wheter a hard reset is required when updating repository. Becarefull when setting it to `true` because it's the same as putting *--hard* while exec git reset | No |
+| `-eg` | - | Ex: External, Dependency | Set Group or Subgroups to be ignored |
+| `-ep` | - | Ex: MyProject | Set Project to be ignored |
 
 ## Dependency Used on this project 
 
@@ -44,4 +46,4 @@ go-git-puller -c update-gitlab -path D:/path/gitlab -u http://172.20.5.20/ -t 5B
 
 ## TO-DO
 
-Currently working on adding `Except Group` and `Except Project` feature. What it does is ignoring Group or Project specified by name in parameter and not doing any action on it.
+Looking for tunning the program and memory usage.
