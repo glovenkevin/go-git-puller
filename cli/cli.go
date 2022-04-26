@@ -3,7 +3,6 @@ package cli
 import (
 	"errors"
 	"flag"
-	"fmt"
 	"os"
 	"regexp"
 	"strings"
@@ -20,15 +19,37 @@ type Cli struct {
 	Action    string
 	Baseurl   string
 
-	// Exclude Feature
-	ExGroups  string
-	ExProject string
+	// Exclude Groups/SubGroups
+	ExGroups sliceName
+
+	// Exclude Project by Name
+	ExProject sliceName
 
 	// Credential
 	Username string
 	Password string
 	Token    string
 }
+
+type sliceName []string
+
+func (rr *sliceName) String() string {
+	return strings.Join(*rr, ",")
+}
+
+func (rr *sliceName) Set(param string) error {
+	*rr = append(*rr, param)
+	return nil
+}
+
+var (
+	ErrCredentialNotFound  = errors.New("Auth was not specified")
+	ErrActionNotFound      = errors.New("Action is not recognized")
+	ErrActionNotProvided   = errors.New("Action is not provided")
+	ErrDirectoryNotValid   = errors.New("Directory is not valid")
+	ErrGroupNameNotValid   = errors.New("Group name not valid")
+	ErrProjectNameNotValid = errors.New("Project name not valid")
+)
 
 // Return new Cli struct for consuming
 // parameter that needed to do actions
@@ -46,47 +67,48 @@ func New() *Cli {
 // And then parse it
 func (c *Cli) Parse() error {
 
-	flag.Usage = func() {
-		fmt.Fprintln(os.Stderr, "Usage Command go-git-pull [-c/-action action] [-option option ...]")
-		fmt.Fprintln(os.Stderr, "\tAction: update, update-gitlab, clone-gitlab")
-
-		fmt.Fprintln(os.Stderr, "\nList option available: ")
-		flag.CommandLine.PrintDefaults()
+	action := os.Args[1]
+	if action == "" {
+		return ErrActionNotProvided
 	}
 
-	flag.StringVar(&c.Action, "c", "", "Set action")
-	flag.StringVar(&c.Action, "action", "", "Set action")
+	actions := map[string]struct{}{
+		"clone-gitlab":  {},
+		"update-gitlab": {},
+		"update":        {},
+		"version":       {},
+		"usage":         {},
+	}
 
-	flag.StringVar(&c.Baseurl, "u", "https://gitlab.com/", "Url gitlab repository")
-	flag.StringVar(&c.Baseurl, "url", "https://gitlab.com/", "Url gitlab repository")
+	if _, ok := actions[action]; !ok {
+		return ErrActionNotFound
+	}
+	c.Action = action
 
-	flag.StringVar(&c.Username, "U", "", "Put username for git")
-	flag.StringVar(&c.Username, "username", "", "Put username for git")
+	subCommand := flag.NewFlagSet("action", flag.ExitOnError)
 
-	flag.StringVar(&c.Password, "P", "", "Put password for git")
-	flag.StringVar(&c.Password, "password", "", "Put password for git")
+	subCommand.StringVar(&c.Baseurl, "u", "https://gitlab.com/", "Url gitlab repository")
+	subCommand.StringVar(&c.Baseurl, "url", "https://gitlab.com/", "Url gitlab repository")
 
-	flag.StringVar(&c.Token, "t", "", "Token for authentication")
-	flag.StringVar(&c.Token, "token", "", "Token for authentication")
+	subCommand.StringVar(&c.Username, "U", "", "Put username for git")
+	subCommand.StringVar(&c.Username, "username", "", "Put username for git")
 
-	flag.StringVar(&c.ExGroups, "eg", "", "Exclude group specified by group name. Put multiple groups separately with commas")
-	flag.StringVar(&c.ExProject, "ep", "", "Exclude project specified by project name. Put multiple projects separately with commas")
+	subCommand.StringVar(&c.Password, "P", "", "Put password for git")
+	subCommand.StringVar(&c.Password, "password", "", "Put password for git")
 
-	flag.StringVar(&c.Rootdir, "path", ".", "Set Working directory root path")
-	flag.BoolVar(&c.Verbose, "verbose", false, "Activate verbose/debug print")
-	flag.BoolVar(&c.Hardreset, "hard-reset", false, "Set false to use softreset or otherwise")
+	subCommand.StringVar(&c.Token, "t", "", "Token for authentication")
+	subCommand.StringVar(&c.Token, "token", "", "Token for authentication")
 
-	flag.Parse()
+	subCommand.Var(&c.ExGroups, "eg", "Exclude group specified by group name")
+	subCommand.Var(&c.ExProject, "ep", "Exclude project specified by project name")
+
+	subCommand.StringVar(&c.Rootdir, "path", ".", "Set Working directory root path")
+	subCommand.BoolVar(&c.Verbose, "verbose", false, "Activate verbose/debug print")
+	subCommand.BoolVar(&c.Hardreset, "hard-reset", false, "Set false to use softreset or otherwise")
+
+	_ = subCommand.Parse(os.Args[2:])
 	return c.Validate()
 }
-
-var (
-	ErrCredentialNotFound  = errors.New("Username/Password/Token has not ben set")
-	ErrActionNotFound      = errors.New("Action was not specified")
-	ErrDirectoryNotValid   = errors.New("Directory is not valid")
-	ErrGroupNameNotValid   = errors.New("Group name not valid")
-	ErrProjectNameNotValid = errors.New("Project name not valid")
-)
 
 // Validate mandatory input that has been set
 // Action is a must: update, update-gitlab
@@ -94,8 +116,8 @@ var (
 // Root directory must valid or will using current dir
 func (c *Cli) Validate() error {
 
-	if c.Action == "" {
-		return ErrActionNotFound
+	if c.Action == "version" || c.Action == "usage" {
+		return nil
 	}
 
 	if c.Token == "" && (c.Username == "" || c.Password == "") {
@@ -124,15 +146,6 @@ func (c *Cli) Validate() error {
 		return err
 	}
 
-	regex := regexp.MustCompile("[^a-zA-Z0-9,_-]+")
-	if c.ExGroups != "" && regex.MatchString(c.ExGroups) {
-		return ErrGroupNameNotValid
-	}
-
-	if c.ExProject != "" && regex.MatchString(c.ExProject) {
-		return ErrProjectNameNotValid
-	}
-
 	return nil
 }
 
@@ -146,7 +159,9 @@ func (c *Cli) NewCommand(zLog *zap.Logger) (*commands.Command, error) {
 			Username: c.Username,
 			Password: c.Password,
 		},
-		Logs: zLog,
+		Logs:       zLog,
+		Exgroups:   ([]string)(c.ExGroups),
+		Exprojects: ([]string)(c.ExProject),
 	})
 
 	return command, err

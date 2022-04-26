@@ -1,7 +1,7 @@
 package main
 
 import (
-	"log"
+	"fmt"
 
 	"github.com/glovenkevin/go-git-puller/cli"
 	"go.uber.org/zap"
@@ -13,7 +13,8 @@ func main() {
 	cli := cli.New()
 	err := cli.Parse()
 	if err != nil {
-		log.Fatal(err.Error())
+		fmt.Println(err)
+		return
 	}
 
 	// Set Logger config
@@ -32,11 +33,13 @@ func main() {
 
 	cmd, err := cli.NewCommand(zlog)
 	if err != nil {
-		log.Fatal(err.Error())
+		fmt.Println(err)
+		return
 	}
 
 	err = cmd.Execute()
 	if err != nil {
-		log.Fatal(err.Error())
+		fmt.Println(err)
+		return
 	}
 }

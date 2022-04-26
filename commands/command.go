@@ -2,6 +2,7 @@ package commands
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"regexp"
 	"strings"
@@ -21,10 +22,10 @@ type Options struct {
 	Dir string
 
 	// Exclude Group name, separated by commas
-	Exgroup string
+	Exgroups []string
 
 	// Exclude Project name, separated by commas
-	Exproject string
+	Exprojects []string
 
 	// a flag that used to make decision wether it's need to be hard reset
 	// before the pull being executed
@@ -41,15 +42,15 @@ type Options struct {
 }
 
 type Command struct {
-	verbose   bool
-	action    string
-	dir       string
-	exGroup   string
-	exProject string
-	auth      *Auth
-	hardReset bool
-	baseurl   string
-	bar       *progressbar.ProgressBar
+	verbose    bool
+	action     string
+	dir        string
+	exGroups   map[string]struct{}
+	exProjects map[string]struct{}
+	auth       *Auth
+	hardReset  bool
+	baseurl    string
+	bar        *progressbar.ProgressBar
 
 	// default logger for the package command (zap logger)
 	log *zap.Logger
@@ -80,16 +81,26 @@ func New(opt *Options) (*Command, error) {
 		return nil, err
 	}
 
+	exProject := make(map[string]struct{})
+	for _, val := range opt.Exprojects {
+		exProject[val] = struct{}{}
+	}
+
+	exGroups := make(map[string]struct{})
+	for _, val := range opt.Exgroups {
+		exGroups[val] = struct{}{}
+	}
+
 	c := Command{
-		verbose:   opt.Verbose,
-		action:    opt.Action,
-		auth:      opt.Auth,
-		dir:       opt.Dir,
-		exGroup:   opt.Exgroup,
-		exProject: opt.Exproject,
-		hardReset: opt.Hardreset,
-		baseurl:   opt.Baseurl,
-		log:       opt.Logs,
+		verbose:    opt.Verbose,
+		action:     opt.Action,
+		auth:       opt.Auth,
+		dir:        opt.Dir,
+		exGroups:   exGroups,
+		exProjects: exProject,
+		hardReset:  opt.Hardreset,
+		baseurl:    opt.Baseurl,
+		log:        opt.Logs,
 	}
 
 	if !opt.Verbose {
@@ -104,8 +115,8 @@ func New(opt *Options) (*Command, error) {
 // Credential, action performed, directory and the logs
 func validate(opt *Options) error {
 
-	if opt.Action == "" {
-		return ErrActionNotFound
+	if opt.Action == "version" || opt.Action == "usage" {
+		return nil
 	}
 
 	if match, _ := regexp.MatchString(`[/\\]{2,}$`, opt.Dir); match {
@@ -136,13 +147,20 @@ func validate(opt *Options) error {
 func (c *Command) getCommandDispatcher() map[string]func() error {
 	return map[string]func() error{
 		"update": func() error {
-			return c.updateGit()
+			return c.UpdateGit()
 		},
 		"update-gitlab": func() error {
-			return c.updateGitlab()
+			return c.UpdateGitlab()
 		},
 		"clone-gitlab": func() error {
 			return c.CloneGitlab()
+		},
+		"version": func() error {
+			return PrintVersion()
+		},
+		"usage": func() error {
+			usage()
+			return nil
 		},
 	}
 }
@@ -151,14 +169,45 @@ func (c *Command) getCommandDispatcher() map[string]func() error {
 func (c *Command) Execute() error {
 
 	dispatcher := c.getCommandDispatcher()
-	if dispatcher[c.action] == nil {
-		return ErrCommandNotFound
-	}
-
 	err := dispatcher[c.action]()
 	if err != nil {
 		return err
 	}
 
 	return nil
+}
+
+func usage() {
+	msg := `
+Usage: go-git-puller.exe <action> [-t <token>] [-U <username>] [-P <password>]
+			[-path <path>] [-u <URL>] [-verbose] [-eg <groupname>] [-ep <projectname>]
+
+Action
+  clone-gitlab	Clone whole gitlab project with tree structure
+  update-gitlab	Update gitlab project in local recursively, clone the project if doesn't exist or update it if present in your local mechine 
+  update	Update local project recursively
+  version	Show go-git-puller version
+  usage		Show command line parameter
+
+Action Parameter
+  -u,-url	Default would be https://gitlab.com/, if you have local repository with specific url you can put it in here.
+  -path		Set the target path. The default value is current path
+  -verbose	Flag for activating debug mode (Print every the shit out of it)
+  -hard-reset	Flag for enabling hard reset on project/local repo when update action being executed
+  -version	Show go-git-puller current version
+
+Authentication parameter
+  -U,-username	Set the username for authentication
+  -P,-password	Set the password for authentication
+  -t,-token	Using token for authentication
+
+Exclude Project/Group parameter
+  -eg		Exclude group from being pull/update by name
+  -ep		Exclude project from being pull/update by name
+
+Example: 
+  #Clone Whole Gitlab Tree
+  go-git-puller.exe -c clone-gitlab -t 124asdf -u http://localhost/
+`
+	fmt.Println(msg)
 }
